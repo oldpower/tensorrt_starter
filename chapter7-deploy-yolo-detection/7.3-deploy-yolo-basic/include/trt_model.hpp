@@ -9,7 +9,7 @@
 #include "trt_logger.hpp"
 #include "trt_preprocess.hpp"
 
-#define WORKSPACESIZE 1<<28
+#define WORKSPACESIZE 1<<30
 /*
     // 我们希望根据onnx目录进行寻找engine文件。如果有就直接load，如果没有就直接build。并且根据不同的模型类型指定不同的build方式
     classifier = model("resnet18.onnx", Model::CLASSIFICATION);

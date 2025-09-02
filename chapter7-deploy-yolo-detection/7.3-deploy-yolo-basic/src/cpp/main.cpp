@@ -7,8 +7,15 @@ using namespace std;
 
 int main(int argc, char const *argv[])
 {
+    // 检查是否提供了足够的参数
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <onnx_model_path>" << std::endl;
+        std::cerr << "Example: " << argv[0] << " models/onnx/yolov8n.onnx" << std::endl;
+        return 1;
+    }
     /*这么实现目的在于让调用的整个过程精简化*/
-    string onnxPath    = "models/onnx/yolov8x.onnx";
+    string onnxPath    = argv[1];
+    // string onnxPath    = "models/onnx/yolov8n.onnx";
 
     auto level         = logger::Level::VERB;
     auto params        = model::Params();

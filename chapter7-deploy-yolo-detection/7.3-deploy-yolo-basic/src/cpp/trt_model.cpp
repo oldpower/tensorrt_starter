@@ -62,7 +62,8 @@ bool Model::build_engine() {
     auto config        = shared_ptr<IBuilderConfig>(builder->createBuilderConfig(), destroy_trt_ptr<IBuilderConfig>);
     auto parser        = shared_ptr<IParser>(createParser(*network, *m_logger), destroy_trt_ptr<IParser>);
 
-    config->setMaxWorkspaceSize(m_workspaceSize);
+    // config->setMaxWorkspaceSize(m_workspaceSize);
+    config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE,m_workspaceSize);
     config->setProfilingVerbosity(ProfilingVerbosity::kDETAILED); //这里也可以设置为kDETAIL;
 
     if (!parser->parseFromFile(m_onnxPath.c_str(), 1)){

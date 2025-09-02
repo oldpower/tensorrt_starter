@@ -1,63 +1,78 @@
-CONFIG        :=  ../../config/Makefile.config
-CONFIG_LOCAL  :=  ./config/Makefile.config
+CONFIG        := ../../config/Makefile.config
+CONFIG_LOCAL  := ./config/Makefile.config
 
 include $(CONFIG)
 include $(CONFIG_LOCAL)
 
+BUILD_PATH    := build
+SRC_PATH      := src/cpp
+INC_PATH      := include
+CUDA_DIR      := /usr/local/cuda-$(CUDA_VER)
 
-BUILD_PATH    :=  build
-SRC_PATH      :=  src/cpp
-INC_PATH      :=  include
-CUDA_DIR      :=  /usr/local/cuda-$(CUDA_VER)
+# 源文件定义
+CXX_SRC       := $(wildcard $(SRC_PATH)/*.cpp)
+KERNELS_SRC   := $(wildcard $(SRC_PATH)/*.cu)
 
-CXX_SRC       +=  $(wildcard $(SRC_PATH)/*.cpp)
-KERNELS_SRC   :=  $(wildcard $(SRC_PATH)/*.cu)
+# 排除 libinfer.cpp 用于可执行文件构建
+APP_CXX_SRC   := $(filter-out $(SRC_PATH)/libinfer.cpp, $(CXX_SRC))
+LIB_CXX_SRC   := $(filter-out $(SRC_PATH)/main.cpp, $(CXX_SRC))
 
-APP_OBJS      :=  $(patsubst $(SRC_PATH)%, $(BUILD_PATH)%, $(CXX_SRC:.cpp=.cpp.o))
-APP_OBJS      +=  $(patsubst $(SRC_PATH)%, $(BUILD_PATH)%, $(KERNELS_SRC:.cu=.cu.o))  
+# 对象文件
+APP_OBJS      := $(patsubst $(SRC_PATH)%, $(BUILD_PATH)%, $(APP_CXX_SRC:.cpp=.cpp.o))
+LIB_OBJS      := $(patsubst $(SRC_PATH)%, $(BUILD_PATH)%, $(LIB_CXX_SRC:.cpp=.cpp.o))
+CUDA_OBJS     := $(patsubst $(SRC_PATH)%, $(BUILD_PATH)%, $(KERNELS_SRC:.cu=.cu.o))
 
-APP_MKS       :=  $(APP_OBJS:.o=.mk)
+APP_OBJS      += $(CUDA_OBJS)
+LIB_OBJS      += $(CUDA_OBJS)
 
-APP_DEPS      :=  $(CXX_SRC)
-APP_DEPS      +=  $(KERNELS_SRC)
-APP_DEPS      +=  $(wildcard $(SRC_PATH)/*.h)
+APP_MKS       := $(APP_OBJS:.o=.mk) $(LIB_OBJS:.o=.mk)
 
+# 目标和依赖
+APP           := main
+LIB           := libinfer.so
 
-CUCC          :=  $(CUDA_DIR)/bin/nvcc
-CXXFLAGS      :=  -std=c++11 -pthread -fPIC
-CUDAFLAGS     :=  --shared -Xcompiler -fPIC 
+APP_DEPS      := $(APP_CXX_SRC) $(KERNELS_SRC) $(wildcard $(SRC_PATH)/*.h)
+LIB_DEPS      := $(LIB_CXX_SRC) $(KERNELS_SRC) $(wildcard $(SRC_PATH)/*.h)
 
-INCS          :=  -I $(CUDA_DIR)/include \
-                  -I $(SRC_PATH) \
-				  -I $(OPENCV_INSTALL_DIR) \
-				  -I $(TENSORRT_INSTALL_DIR)/include \
-				  -I $(INC_PATH)
+# 工具和标志 (保持不变)
+CUCC          := $(CUDA_DIR)/bin/nvcc
+CXXFLAGS      := -std=c++11 -pthread -fPIC
+CUDAFLAGS     := --shared -Xcompiler -fPIC
 
-LIBS          :=  -L "$(CUDA_DIR)/lib64" \
-                  -L "$(TENSORRT_INSTALL_DIR)/lib" \
-				  -lcudart -lcublas -lcudnn \
-				  -lnvinfer -lnvonnxparser\
-				  -lstdc++fs \
-				  `pkg-config --libs opencv4`
+INCS          := -I $(CUDA_DIR)/include \
+                 -I $(SRC_PATH) \
+                 -I $(OPENCV_INSTALL_DIR) \
+                 -I $(TENSORRT_INSTALL_DIR)/include \
+                 -I $(CUDNN_INSTALL_DIR)/include \
+                 -I $(INC_PATH)
 
+LIBS          := -L "$(CUDA_DIR)/lib64" \
+                 -L "$(TENSORRT_INSTALL_DIR)/lib" \
+                 -L "$(CUDNN_INSTALL_DIR)/lib" \
+                 -lcudart -lcublas -lcudnn \
+                 -lnvinfer -lnvonnxparser \
+                 -lnvinfer_plugin \
+                 -lstdc++fs \
+                 `pkg-config --libs opencv4`
 
+# 调试和警告标志 (保持不变)
 ifeq ($(DEBUG),1)
-CUDAFLAGS     +=  -g -O0
-CXXFLAGS      +=  -g -O0
+CUDAFLAGS     += -g -O0
+CXXFLAGS      += -g -O0
 else
-CUDAFLAGS     +=  -O3
-CXXFLAGS      +=  -O3
+CUDAFLAGS     += -O3
+CXXFLAGS      += -O3
 endif
 
 ifeq ($(SHOW_WARNING),1)
-CUDAFLAGS     +=  -Wall -Wunused-function -Wunused-variable -Wfatal-errors
-CXXFLAGS      +=  -Wall -Wunused-function -Wunused-variable -Wfatal-errors
+CUDAFLAGS     += -Wall -Wunused-function -Wunused-variable -Wfatal-errors
+CXXFLAGS      += -Wall -Wunused-function -Wunused-variable -Wfatal-errors
 else
-CUDAFLAGS     +=  -w
-CXXFLAGS      +=  -w
+CUDAFLAGS     += -w
+CXXFLAGS      += -w
 endif
 
-
+# bear命令 (保持不变)
 ifeq (, $(shell which bear))
 BEARCMD       :=
 else
@@ -68,57 +83,63 @@ BEARCMD       := bear -o config/compile_commands.json
 endif
 endif
 
+# 目标定义
+all: lib app
 
-all: 
-	@mkdir -p bin
-	@$(BEARCMD) $(MAKE) --no-print-directory $(APP)
-	@echo finished building $@. Have fun!!
+lib: $(LIB)
 
-run:
-	@$(MAKE) --no-print-directory update
+app: $(APP)
+
+run: app
 	@./bin/$(APP)
+
+$(APP): $(APP_OBJS)
+	@echo "Linking executable $@"
+	@mkdir -p bin
+	@$(CXX) $^ -o bin/$@ $(LIBS) $(INCS)
+
+$(LIB): $(LIB_OBJS)
+	@echo "Linking shared library $@"
+	@mkdir -p bin
+	@$(CXX) -shared $^ -o bin/$@ $(LIBS) $(INCS)
 
 update: $(APP)
 	@echo finished updating $<
 
-$(APP): $(APP_DEPS) $(APP_OBJS)
-	@$(CXX) $(APP_OBJS) -o bin/$@ $(LIBS) $(INCS)
-
-show: 
-	@echo $(BUILD_PATH)
-	@echo $(APP_DEPS)
-	@echo $(INCS)
-	@echo $(APP_OBJS)
-	@echo $(APP_MKS)
+show:
+	@echo "Build path: $(BUILD_PATH)"
+	@echo "App sources: $(APP_CXX_SRC)"
+	@echo "Lib sources: $(LIB_CXX_SRC)"
+	@echo "CUDA sources: $(KERNELS_SRC)"
+	@echo "Include paths: $(INCS)"
+	@echo "App objects: $(APP_OBJS)"
+	@echo "Lib objects: $(LIB_OBJS)"
 
 clean:
-	rm -rf $(APP)
+	rm -rf bin/$(APP) bin/$(LIB)
 	rm -rf build
 	rm -rf config/compile_commands.json
 	rm -rf bin
 
-ifneq ($(MAKECMDGOALS), clean)
--include $(APP_MKS)
-endif
-
-# Compile CXX
-$(BUILD_PATH)/%.cpp.o: $(SRC_PATH)/%.cpp 
-	@echo Compile CXX $@
+# 编译规则 (保持不变)
+$(BUILD_PATH)/%.cpp.o: $(SRC_PATH)/%.cpp
+	@echo "Compiling CXX $<"
 	@mkdir -p $(BUILD_PATH)
 	@$(CXX) -o $@ -c $< $(CXXFLAGS) $(INCS)
-$(BUILD_PATH)/%.cpp.mk: $(SRC_PATH)/%.cpp
-	@echo Compile Dependence CXX $@
-	@mkdir -p $(BUILD_PATH)
-	@$(CXX) -M $< -MF $@ -MT $(@:.cpp.mk=.cpp.o) $(CXXFLAGS) $(INCS) 
 
-# Compile CUDA
+$(BUILD_PATH)/%.cpp.mk: $(SRC_PATH)/%.cpp
+	@echo "Generating dependencies for $<"
+	@mkdir -p $(BUILD_PATH)
+	@$(CXX) -M $< -MF $@ -MT $(@:.cpp.mk=.cpp.o) $(CXXFLAGS) $(INCS)
+
 $(BUILD_PATH)/%.cu.o: $(SRC_PATH)/%.cu
-	@echo Compile CUDA $@
+	@echo "Compiling CUDA $<"
 	@mkdir -p $(BUILD_PATH)
 	@$(CUCC) -o $@ -c $< $(CUDAFLAGS) $(INCS)
-$(BUILD_PATH)/%.cu.mk: $(SRC_PATH)%.cu
-	@echo Compile Dependence CUDA $@
+
+$(BUILD_PATH)/%.cu.mk: $(SRC_PATH)/%.cu
+	@echo "Generating CUDA dependencies for $<"
 	@mkdir -p $(BUILD_PATH)
 	@$(CUCC) -M $< -MF $@ -MT $(@:.cu.mk=.cu.o) $(CUDAFLAGS)
 
-.PHONY: all update show clean 
+.PHONY: all lib app run update show clean
