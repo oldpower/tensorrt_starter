@@ -272,8 +272,8 @@ def predictVit():
     input_batch = input_tensor.unsqueeze(0).to(device)
     # input_batch = torch.cat([input_batch,input_batch],dim=0)
     with torch.no_grad():
-        starttime = time.time()
         for _ in range(5):
+            starttime = time.time()
             output = vit_model(input_batch)
             print(f"⏰torch推理耗时: {time.time() - starttime:.4f}")
             probabilities = torch.nn.functional.softmax(output, dim=1)
@@ -360,9 +360,9 @@ def inference_onnx():
     input_numpy = input_tensor.numpy()  # 转为 numpy array
     print(input_numpy.shape)
    
-    starttime = time.time()
     for _ in range(5):
         # 推理
+        starttime = time.time()
         outputs = session.run(None, {input_name: input_numpy})  # None 表示返回所有输出
         print(f"⏰onnx推理耗时: {time.time() - starttime:.4f}")
 

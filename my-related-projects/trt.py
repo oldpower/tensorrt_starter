@@ -340,9 +340,9 @@ def inference_TRTInfer():
     # input_tensor = torch.cat([input_tensor, input_tensor], dim=0)
     inputs = input_tensor.numpy()
 
-    starttime = time.time()
     for _ in range(5):
         # 推理
+        starttime = time.time()
         outputs = infer.infer(inputs)['output0']
         print(f"⏰trtengine推理耗时: {time.time() - starttime:.4f} s")
 

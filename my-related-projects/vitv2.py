@@ -174,6 +174,7 @@ def trainVit():
 
 def predictVit():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
     num_class = 2
 
     vit_model,vit_transform = initVitv2()
@@ -190,17 +191,111 @@ def predictVit():
     input_batch = input_tensor.unsqueeze(0).to(device)
     # input_batch = torch.cat([input_batch,input_batch],dim=0)
     with torch.no_grad():
-        starttime = time.time()
         for _ in range(5):
+            starttime = time.time()
             output = vit_model(input_batch)
             print(f"⏰torch推理耗时: {time.time() - starttime:.4f}")
             probabilities = torch.nn.functional.softmax(output, dim=1)
             
             print("原始输出：", output)
-            print("概率分布：", probabilities)
+            # print("概率分布：", probabilities)
             # 获取类别及其对应的概率
             prob_values, predicted_classes = torch.max(probabilities, 1)
-            print(f"预测类别: {predicted_classes.item()}, 概率: {prob_values.item()}")
+            # print(f"预测类别: {predicted_classes.item()}, 概率: {prob_values.item()}")
+
+def export_norm_onnx():
+    import onnx
+    import onnxsim
+
+    file    = os.path.join(current_dir,'models/vitv2_b_32_2class.onnx')
+    input   = torch.rand(1, 3, 224, 224, device='cuda')
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    num_class = 2
+    vit_model,_ = initVitv2()
+    vit_model.vit.heads.head = torch.nn.Linear(vit_model.vit.heads.head.in_features, num_class)
+    vit_model.load_state_dict(torch.load('models/vitv2_b_32_2class.pth'))
+    vit_model.to(device)
+
+    vit_model.eval()
+    torch.onnx.export(
+        model         = vit_model, 
+        args          = (input,),
+        f             = file,
+        input_names   = ["input0"],
+        output_names  = ["output0"],
+        dynamic_axes  = {"input0" :{0:"batch"},
+                         "output0":{0:"batch"}},
+        opset_version = 15)
+    print("Finished normal onnx export")
+
+    model_onnx = onnx.load(file)
+
+    # 检查导入的onnx model
+    onnx.checker.check_model(model_onnx)
+
+    # 使用onnx-simplifier来进行onnx的简化。
+    print(f"Simplifying with onnx-simplifier {onnxsim.__version__}...")
+    model_onnx, check = onnxsim.simplify(model_onnx)
+    assert check, "assert check failed"
+    onnx.save(model_onnx, file)
+
+def inference_onnx():
+    import onnxruntime as ort
+    import onnx
+
+    # 加载 ONNX 模型（可选，用于查看信息）
+    model_onnx = onnx.load('./models/vitv2_b_32_2class.onnx')
+    print("模型输入名:", model_onnx.graph.input[0].name)
+    print("模型输出名:", model_onnx.graph.output[0].name)
+
+    # 创建 ONNX Runtime 推理会话
+    session = ort.InferenceSession('./models/vit_b_32_2class.onnx', providers=['CPUExecutionProvider'])
+    # 如果有 GPU，可以使用:
+    # session = ort.InferenceSession('./models/vit_b_32_2class.onnx', providers=['CUDAExecutionProvider'])
+
+    # 获取输入信息
+    input_name = session.get_inputs()[0].name
+    print("输入节点名:", input_name)
+
+    # 加载并预处理图片
+    # image_path = './assets/StirringLL/20250814-StirringLiquidLiquid_frame_0000.png'
+    # pil_image = Image.open(image_path).convert('RGB')
+    pil_image = Image.open(os.path.join(current_dir,'./assets/StirringLL/20250814-StirringLiquidLiquid_frame_0000.png'))
+    pil_image = Image.open(os.path.join(current_dir,'./assets/StirringSL/20250814-StirringSolidLiquid_frame_0000.png'))
+
+    # 注意：ONNX 模型的输入是经过预处理的张量，必须和训练时一致！
+    from torchvision import transforms
+    transform = transforms.Compose([
+        transforms.Resize((224,224)),  # ViT-B/32 使用 224x224
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+
+    input_tensor = transform(pil_image).unsqueeze(0)  # 添加 batch 维度
+    # input_tensor = torch.cat([input_tensor, input_tensor], dim=0)
+    input_numpy = input_tensor.numpy()  # 转为 numpy array
+    print(input_numpy.shape)
+   
+    for _ in range(5):
+        starttime = time.time()
+        # 推理
+        outputs = session.run(None, {input_name: input_numpy})  # None 表示返回所有输出
+        print(f"⏰onnx推理耗时: {time.time() - starttime:.4f}")
+
+        # 获取输出
+        logits = outputs[0]  # shape: [1, num_classes]
+        print("原始输出:", logits)
+        # 转为概率（Softmax）
+        probabilities = torch.softmax(torch.from_numpy(logits), dim=1).numpy()[0]
+        # print("概率分布:", probabilities)
+        # 获取预测类别
+        predicted_class = probabilities.argmax()
+        # print(f"预测类别: {predicted_class}, 置信度: {probabilities[predicted_class]:.4f}")
+
+def inference_trt():
+    from z_trt import inference_TRTInfer
+    inference_TRTInfer()
 
 
 def vitDemo():
@@ -210,4 +305,8 @@ def vitDemo():
 
 if __name__ == "__main__":
     # trainVit() 
+    # export_norm_onnx()
     predictVit()
+    # inference_onnx()
+    # inference_trt()
+
