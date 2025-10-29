@@ -71,3 +71,17 @@ pip install onnx
  - softmax 不使用 torch
  - infer 连续推理，相同输入尺寸下，内存预分配和复用
 
+## siamesenet
+
+ - SiameseNet 全流程:[siamesenet](./siamesenet)
+ - [README](./siamesenet/README.md)
+ - 重点是**MySataset**: `SiameseDataset`, `mytransform`
+
+    .
+    ├── createdata.py   # 创建数据集
+    ├── splitdata.py    # 分割数据集
+    ├── MyModel.py      # SiameseNet
+    ├── MyDataset.py    # Dataset Load
+    ├── train.py        # 训练
+    ├── inference.py    # 推理
+    └── README.md       # 说明文档
