@@ -77,11 +77,11 @@ pip install onnx
  - [README](./siamesenet/README.md)
  - 重点是**MySataset**: `SiameseDataset`, `mytransform`
 
-    .
-    ├── createdata.py   # 创建数据集
-    ├── splitdata.py    # 分割数据集
-    ├── MyModel.py      # SiameseNet
-    ├── MyDataset.py    # Dataset Load
-    ├── train.py        # 训练
-    ├── inference.py    # 推理
-    └── README.md       # 说明文档
+        .
+        ├── createdata.py   # 创建数据集
+        ├── splitdata.py    # 分割数据集
+        ├── MyModel.py      # SiameseNet
+        ├── MyDataset.py    # Dataset Load
+        ├── train.py        # 训练
+        ├── inference.py    # 推理
+        └── README.md       # 说明文档
