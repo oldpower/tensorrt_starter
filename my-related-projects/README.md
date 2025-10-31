@@ -27,6 +27,13 @@ my-related-projects
 
 使用`可学习的 2D 位置编码 PositionEmbedding2D `
 
+## vitv3.py
+
+ - vit模型自定义架构:[vitv3.py](./vitv3.py)
+
+🎯 自定义架构说明
+`vitv3`是`vitv2`的升级版本，在`PositionEmbedding2D`上添加了时间编码`Time_Embedding`, 变为了**2D空间+1D时间**的方式`PositionEmbedding2Dv2`.
+
 
 ## trt.py
 
