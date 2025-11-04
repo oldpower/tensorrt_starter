@@ -3,11 +3,11 @@ my-related-projects
 
 ## vit.py
 
- - vit模型默认架构:[vit.py](./vit.py)
+ - vit模型默认架构:[vit.py](./vitnet/vit.py)
 
 ## vitv2.py
 
- - vit模型自定义架构:[vitv2.py](./vitv2.py)
+ - vit模型自定义架构:[vitv2.py](./vitnet/vitv2.py)
 
 🎯 自定义架构说明
 视频的时序帧中提取数据。
@@ -29,7 +29,7 @@ my-related-projects
 
 ## vitv3.py
 
- - vit模型自定义架构:[vitv3.py](./vitv3.py)
+ - vit模型自定义架构:[vitv3.py](./vitnet/vitv3.py)
 
 🎯 自定义架构说明
 `vitv3`是`vitv2`的升级版本，在`PositionEmbedding2D`上添加了时间编码`Time_Embedding`, 变为了**2D空间+1D时间**的方式`PositionEmbedding2Dv2`.
@@ -37,7 +37,7 @@ my-related-projects
 
 ## trt.py
 
- - 包含了onnx2trt enginer , enginer inf:[trt.py](./trt.py)
+ - 包含了onnx2trt enginer , enginer inf:[trt.py](./vitne/trt.py)
 
 ```bash
 
